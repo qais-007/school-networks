@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>منظومة شبكات المدارس</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --bg:#f3f5f8;--surface:#ffffff;--ink:#14212e;--ink2:#4a5868;--ink3:#6b7886;--line:#dde3ea;
+  --accent:#17324d;--accent-fg:#ffffff;--c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;
+  --ok:#0b6b43;--ok-bg:#e1f4ea;--warn:#8a4b00;--warn-bg:#fff1dc;--bad:#a1241f;--bad-bg:#fde8e7;--soft:#eef2f6;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d141b;--surface:#151f29;--ink:#e7eef5;--ink2:#b3bfcb;--ink3:#93a1af;--line:#26333f;
+  --accent:#4a90e2;--accent-fg:#06121f;--c1:#3987e5;--c2:#d95926;--c3:#199e70;
+  --ok:#5fd0a0;--ok-bg:#123324;--warn:#f0b35c;--warn-bg:#3a2a10;--bad:#ff9a95;--bad-bg:#3b1816;--soft:#1b2733;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d141b;--surface:#151f29;--ink:#e7eef5;--ink2:#b3bfcb;--ink3:#93a1af;--line:#26333f;
+  --accent:#4a90e2;--accent-fg:#06121f;--c1:#3987e5;--c2:#d95926;--c3:#199e70;
+  --ok:#5fd0a0;--ok-bg:#123324;--warn:#f0b35c;--warn-bg:#3a2a10;--bad:#ff9a95;--bad-bg:#3b1816;--soft:#1b2733;color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",system-ui,sans-serif;font-size:15px;line-height:1.7;font-variant-numeric:tabular-nums}
+a{color:var(--c1)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--c1);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px))}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.top-in{display:flex;align-items:center;gap:16px;min-height:60px;flex-wrap:wrap;padding-block:8px}
+.brand{font-weight:700;font-size:1.05rem;letter-spacing:.01em;margin-inline-end:auto;display:flex;flex-direction:column;line-height:1.3}
+.brand small{font-weight:400;color:var(--ink3);font-size:.78rem}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;max-width:100%}
+nav.tabs a{padding:8px 14px;border-radius:6px;text-decoration:none;color:var(--ink2);white-space:nowrap;font-weight:500}
+nav.tabs a[aria-current="page"]{background:var(--accent);color:var(--accent-fg)}
+nav.tabs a:hover:not([aria-current]){background:var(--soft)}
+.who{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--ink2)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 14px;cursor:pointer;font-weight:500}
+.btn:hover{background:var(--soft)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+.btn[disabled]{opacity:.55;cursor:default}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:1px 9px;border-radius:99px;font-size:.78rem;font-weight:600;background:var(--soft);color:var(--ink2);white-space:nowrap}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.ok{background:var(--ok-bg);color:var(--ok)}
+main{padding-block:24px 56px}
+h1{font-size:1.45rem;margin:0 0 4px;text-wrap:balance}
+h2{font-size:1.05rem;margin:0 0 12px}
+.sub{color:var(--ink3);margin:0 0 20px;font-size:.88rem}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+.kpi .n{font-size:1.9rem;font-weight:700;line-height:1.2}
+.kpi .l{color:var(--ink2);font-size:.86rem}
+.kpi .s{color:var(--ink3);font-size:.78rem;margin-top:2px}
+.bars{display:flex;flex-direction:column;gap:10px}
+.brow{display:grid;grid-template-columns:minmax(80px,120px) 1fr auto;gap:10px;align-items:center}
+.blabel{font-size:.88rem;color:var(--ink2);overflow-wrap:anywhere}
+.btrack{height:16px;display:flex;gap:2px;direction:rtl;background:transparent}
+.bfill{height:100%;border-radius:4px 0 0 4px;min-width:3px}
+.bfill.last{border-radius:4px 0 0 4px}
+.bval{font-weight:600;font-size:.88rem;min-width:2.2em;text-align:start}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.84rem;color:var(--ink2);margin-bottom:12px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-inline-end:6px;vertical-align:-1px}
+.comp{display:grid;grid-template-columns:minmax(90px,140px) 1fr auto;gap:10px;align-items:center;margin-bottom:10px}
+.comp .track{height:10px;background:var(--soft);border-radius:5px;overflow:hidden}
+.comp .fill{height:100%;background:var(--c1);border-radius:5px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:10px 12px;text-align:start;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--soft);font-weight:600;white-space:nowrap;position:sticky;top:0}
+th button{all:unset;cursor:pointer;font-weight:600}
+th button:focus-visible{outline:3px solid var(--c1)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.link{cursor:pointer}
+tbody tr.link:hover{background:var(--soft)}
+tfoot td{font-weight:700;background:var(--soft)}
+.num{text-align:end;white-space:nowrap}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:end}
+.filters label{display:flex;flex-direction:column;font-size:.78rem;color:var(--ink3);gap:3px}
+.filters input,.filters select,.fld input,.fld select,.fld textarea,dialog input{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 10px;min-width:130px}
+.filters .grow{flex:1;min-width:200px}.filters .grow input{width:100%}
+.dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px 24px;margin:0}
+.dl div{min-width:0}.dl dt{font-size:.78rem;color:var(--ink3)}.dl dd{margin:0;font-weight:500;overflow-wrap:anywhere}
+.dl .empty{color:var(--ink3);font-weight:400}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px}
+.fld{display:flex;flex-direction:column;gap:3px;font-size:.84rem;color:var(--ink2)}
+.fld input,.fld select,.fld textarea{width:100%;color:var(--ink)}
+.fld.wide{grid-column:1/-1}
+.msg{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:.9rem}
+.msg.err{background:var(--bad-bg);color:var(--bad)}.msg.okm{background:var(--ok-bg);color:var(--ok)}.msg.info{background:var(--soft);color:var(--ink2)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.crumb{font-size:.86rem;margin-bottom:10px}
+#map{height:min(68vh,560px);border-radius:10px;border:1px solid var(--line)}
+dialog{border:1px solid var(--line);border-radius:12px;padding:22px;background:var(--surface);color:var(--ink);width:min(92vw,380px)}
+dialog::backdrop{background:rgba(5,12,20,.55)}
+dialog form{display:flex;flex-direction:column;gap:12px}
+dialog label{display:flex;flex-direction:column;gap:3px;font-size:.84rem}
+dialog input{width:100%}
+#tip{position:fixed;z-index:50;pointer-events:none;background:var(--ink);color:var(--bg);padding:5px 10px;border-radius:6px;font-size:.82rem;display:none;max-width:260px}
+.loading,.empty-state{padding:60px 0;text-align:center;color:var(--ink3)}
+.diff{font-size:.84rem}.diff b{font-weight:600}.diff .old{color:var(--bad);text-decoration:line-through}.diff .new{color:var(--ok)}
+footer{color:var(--ink3);font-size:.8rem;padding-block:24px;border-top:1px solid var(--line)}
+@media (max-width:560px){.brow{grid-template-columns:90px 1fr auto}.kpi .n{font-size:1.6rem}}
+@media (prefers-reduced-motion:no-preference){.bfill{transition:width .4s ease}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap top-in">
+  <div class="brand">منظومة شبكات المدارس<small>سمائل وبدبد · مؤشرات اتصال الإنترنت والشبكات</small></div>
+  <nav class="tabs" id="nav" aria-label="التنقل الرئيسي"></nav>
+  <div class="who" id="who"></div>
+</div></header>
+<main class="wrap" id="app"><div class="loading">جارٍ تحميل البيانات…</div></main>
+<footer class="wrap" id="foot"></footer>
+<dialog id="login"><form method="dialog" id="loginForm">
+  <h2 style="margin:0">تسجيل دخول الفنيين والمدير</h2>
+  <label>البريد الإلكتروني<input id="em" type="email" autocomplete="username" required dir="ltr"></label>
+  <label>كلمة المرور<input id="pw" type="password" autocomplete="current-password" required dir="ltr"></label>
+  <div class="msg err" id="loginErr" hidden></div>
+  <div class="actions" style="margin:0"><button class="btn primary" id="loginGo" type="submit">دخول</button><button class="btn" type="button" id="loginCancel">إلغاء</button></div>
+</form></dialog>
+<div id="tip" role="tooltip"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+const SUPABASE_URL = "https://uwhqpjgobfrbvckafiaw.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Oev9ecoF3VknaTa_hjfgvA_rVp4ckXN";
+/* بعض بيئات المعاينة لا تقبل كائن Headers، فنحوّله إلى كائن عادي قبل الإرسال */
+function safeFetch(input, init){
+  const o = Object.assign({}, init||{});
+  if(o.headers && typeof o.headers.forEach==="function" && !Array.isArray(o.headers)){
+    const h={}; o.headers.forEach((v,k)=>{h[k]=v}); o.headers=h;
+  }
+  if(typeof Request!=="undefined" && input instanceof Request) input=input.url;
+  return fetch(input,o);
+}
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {global:{fetch:safeFetch}});
+
+/* ---------- fields ---------- */
+const CONN = ["Fiber","5G"], PROV = ["Omantel","Ooredoo"], GEND = ["ذكور","إناث","مشترك"];
+const FIELDS = [
+  {k:"name",l:"اسم المدرسة",t:"text",wide:1,req:1},
+  {k:"wilayat",l:"الولاية",t:"text"},
+  {k:"village",l:"القرية",t:"text"},
+  {k:"gender",l:"جنس المدرسة",t:"select",o:GEND},
+  {k:"shift",l:"فترة الدوام",t:"text"},
+  {k:"phone",l:"رقم الهاتف",t:"text",ltr:1},
+  {k:"service_no",l:"رقم الخدمة",t:"text",ltr:1},
+  {k:"second_line",l:"خط إنترنت ثانٍ",t:"text",ltr:1},
+  {k:"conn_type",l:"نوع الاتصال",t:"select",o:CONN},
+  {k:"provider",l:"مزوّد الخدمة",t:"select",o:PROV},
+  {k:"monthly_cost",l:"التكلفة الشهرية (ر.ع)",t:"number"},
+  {k:"speed_mbps",l:"السرعة (Mbps)",t:"number"},
+  {k:"switch_type",l:"نوع السويتش",t:"text"},
+  {k:"lat",l:"خط العرض",t:"number"},
+  {k:"lon",l:"خط الطول",t:"number"},
+  {k:"needs_review",l:"يحتاج مراجعة",t:"bool"},
+  {k:"review_reason",l:"سبب المراجعة",t:"text",wide:1},
+  {k:"notes",l:"الملاحظات",t:"area",wide:1}
+];
+const LABEL = Object.fromEntries(FIELDS.map(f=>[f.k,f.l])); LABEL.code="رمز المدرسة";
+
+/* ---------- state ---------- */
+const S = {schools:[],loaded:false,error:null,user:null,role:null,name:null,editing:false,
+  dir:{q:"",wilayat:"",village:"",gender:"",conn:"",prov:"",review:false,sort:"code",desc:false}};
+const $ = s=>document.querySelector(s);
+const esc = v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nf = new Intl.NumberFormat("en-US",{maximumFractionDigits:1});
+const dtf = new Intl.DateTimeFormat("ar-OM-u-nu-latn",{dateStyle:"medium",timeStyle:"short",timeZone:"Asia/Muscat"});
+const isStaff = ()=>S.role==="admin"||S.role==="technician";
+const isAdmin = ()=>S.role==="admin";
+const blank = v=>v===null||v===undefined||String(v).trim()==="";
+const show = v=>blank(v)?'<span class="empty">غير مُدخل</span>':esc(v);
+
+/* ---------- data ---------- */
+async function load(){
+  const {data,error} = await sb.from("schools").select("*").order("code");
+  if(error){S.error=error.message;} else {S.schools=data;S.error=null;S.loaded=true;}
+}
+async function loadRole(){
+  const {data:{session}} = await sb.auth.getSession();
+  S.user=session?.user||null; S.role=null; S.name=null;
+  if(S.user){
+    const {data} = await sb.from("profiles").select("role,full_name").eq("id",S.user.id).maybeSingle();
+    if(data){S.role=data.role;S.name=data.full_name;}
+  }
+  renderWho();
+}
+
+/* ---------- chrome ---------- */
+function renderNav(route){
+  const tabs=[["#/","الرئيسية"],["#/map","الخريطة"],["#/schools","دليل المدارس"],["#/compare","المقارنة"]];
+  if(isAdmin()) tabs.push(["#/log","سجل التعديلات"]);
+  const cur = route[0]==="school"?"#/schools":("#/"+(route[0]||""));
+  $("#nav").innerHTML = tabs.map(([h,l])=>`<a href="${h}" ${h===cur?'aria-current="page"':""}>${l}</a>`).join("");
+}
+function renderWho(){
+  const w=$("#who");
+  if(S.user && S.role){
+    w.innerHTML=`<span class="badge ${isAdmin()?"ok":""}">${isAdmin()?"مدير":"فني"}</span><span>${esc(S.name||S.user.email)}</span><button class="btn" id="out" type="button">خروج</button>`;
+    $("#out").onclick=async()=>{await sb.auth.signOut();await loadRole();route();};
+  } else if(S.user){
+    w.innerHTML=`<span class="badge warn">حساب بلا صلاحية</span><button class="btn" id="out" type="button">خروج</button>`;
+    $("#out").onclick=async()=>{await sb.auth.signOut();await loadRole();route();};
+  } else {
+    w.innerHTML=`<button class="btn primary" id="inb" type="button">دخول الفنيين</button>`;
+    $("#inb").onclick=()=>$("#login").showModal();
+  }
+}
+function renderFoot(){
+  const last=lastUpdate();
+  $("#foot").innerHTML=`المصدر: قاعدة بيانات المنظومة${last?` · آخر تحديث للبيانات: ${esc(last)}`:""} · الاطلاع متاح للجميع، والتعديل للفنيين المعتمدين فقط.`;
+}
+function lastUpdate(){
+  const t=S.schools.map(s=>Date.parse(s.updated_at)).filter(Boolean);
+  return t.length?dtf.format(new Date(Math.max(...t))):"";
+}
+
+/* ---------- helpers: aggregates ---------- */
+const count=(arr,f)=>arr.reduce((m,x)=>{const k=f(x)||"غير محدد";m[k]=(m[k]||0)+1;return m},{});
+const sum=(arr,f)=>arr.reduce((a,x)=>a+(Number(f(x))||0),0);
+function bars(items,{fmtv=v=>nf.format(v)}={}){
+  const max=Math.max(...items.map(i=>i.value),1);
+  return `<div class="bars">`+items.map(i=>`<div class="brow"><span class="blabel">${esc(i.label)}</span>
+    <div class="btrack" data-tip="${esc(i.label)}: ${esc(fmtv(i.value))}"><div class="bfill" style="width:${i.value/max*100}%;background:${i.color||"var(--c1)"}"></div></div>
+    <span class="bval">${esc(fmtv(i.value))}</span></div>`).join("")+`</div>`;
+}
+function stacked(rows,series){
+  const max=Math.max(...rows.map(r=>r.parts.reduce((a,b)=>a+b,0)),1);
+  const lg=`<div class="legend">`+series.map(s=>`<span><i style="background:${s.color}"></i>${esc(s.label)}</span>`).join("")+`</div>`;
+  return lg+`<div class="bars">`+rows.map(r=>{
+    const tot=r.parts.reduce((a,b)=>a+b,0);
+    return `<div class="brow"><span class="blabel">${esc(r.label)}</span><div class="btrack">`+
+      r.parts.map((p,i)=>p?`<div class="bfill" style="width:${p/max*100}%;background:${series[i].color}" data-tip="${esc(r.label)} · ${esc(series[i].label)}: ${p}"></div>`:"").join("")+
+      `</div><span class="bval">${tot}</span></div>`}).join("")+`</div>`;
+}
+function reviewList(list){
+  if(!list.length) return `<p class="sub">لا توجد مدارس تحتاج مراجعة.</p>`;
+  return `<div class="tablewrap"><table><thead><tr><th>الرمز</th><th>المدرسة</th><th>سبب المراجعة</th></tr></thead><tbody>`+
+    list.map(s=>`<tr class="link" data-go="#/school/${esc(s.code)}"><td>${esc(s.code)}</td><td>${esc(s.name)}</td><td>${esc(s.review_reason||"")}</td></tr>`).join("")+`</tbody></table></div>`;
+}
+
+/* ---------- views ---------- */
+function viewHome(){
+  const a=S.schools, n=a.length;
+  const fiber=a.filter(s=>s.conn_type==="Fiber").length, g5=a.filter(s=>s.conn_type==="5G").length;
+  const cost=sum(a,s=>s.monthly_cost), rev=a.filter(s=>s.needs_review);
+  const byW=count(a,s=>s.wilayat);
+  const wil=Object.keys(byW);
+  const stackedRows=wil.map(w=>({label:w,parts:CONN.map(c=>a.filter(s=>s.wilayat===w&&s.conn_type===c).length)}));
+  const provBars=PROV.map((p,i)=>({label:p,value:a.filter(s=>s.provider===p).length,color:i?"var(--c2)":"var(--c1)"}));
+  const costBars=wil.map(w=>({label:w,value:sum(a.filter(s=>s.wilayat===w),s=>s.monthly_cost),color:"var(--c1)"}));
+  const checks=[["رقم الخدمة",s=>s.service_no],["رقم الهاتف",s=>s.phone],["الإحداثيات",s=>s.lat!==null&&s.lon!==null?1:""],
+    ["السرعة (Mbps)",s=>s.speed_mbps],["نوع السويتش",s=>s.switch_type]];
+  const comp=checks.map(([l,f])=>{const ok=a.filter(s=>!blank(f(s))).length;const p=n?ok/n*100:0;
+    return `<div class="comp"><span class="blabel">${l}</span><div class="track" data-tip="${ok} من ${n}"><div class="fill" style="width:${p}%;background:${p>=100?"var(--ok)":"var(--c1)"}"></div></div>
+    <span class="badge ${p>=100?"ok":"warn"}">${p>=100?"✓ مكتمل":`! ${ok} من ${n}`}</span></div>`}).join("");
+  return `<h1>مؤشرات شبكات المدارس</h1><p class="sub">${n} مدرسة في ${wil.length} ولايتين · آخر تحديث: ${esc(lastUpdate()||"—")}</p>
+  <div class="grid kpis">
+    <div class="card kpi"><div class="n">${n}</div><div class="l">عدد المدارس</div></div>
+    <div class="card kpi"><div class="n">${fiber}</div><div class="l">اتصال Fiber</div><div class="s">${n?nf.format(fiber/n*100):0}% من المدارس</div></div>
+    <div class="card kpi"><div class="n">${g5}</div><div class="l">اتصال 5G</div><div class="s">${n?nf.format(g5/n*100):0}% من المدارس</div></div>
+    <div class="card kpi"><div class="n">${nf.format(cost)}</div><div class="l">التكلفة الشهرية (ر.ع)</div><div class="s">متوسط ${n?nf.format(cost/n):0} لكل مدرسة</div></div>
+    <div class="card kpi"><div class="n">${rev.length}</div><div class="l">تحتاج مراجعة</div><div class="s">بيانات متعارضة أو ناقصة</div></div>
+  </div>
+  <div class="grid g2">
+    <section class="card"><h2>نوع الاتصال حسب الولاية</h2>${stacked(stackedRows,[{label:"Fiber",color:"var(--c1)"},{label:"5G",color:"var(--c2)"}])}</section>
+    <section class="card"><h2>المدارس حسب مزوّد الخدمة</h2>${bars(provBars)}</section>
+    <section class="card"><h2>التكلفة الشهرية حسب الولاية (ر.ع)</h2>${bars(costBars)}</section>
+    <section class="card"><h2>اكتمال البيانات</h2>${comp}<p class="sub" style="margin:8px 0 0">تظهر مؤشرات السرعة والسويتش بعد أن يُدخل الفنيون قيمها الفعلية.</p></section>
+  </div>
+  <section style="margin-top:16px"><h2>مدارس تحتاج مراجعة</h2>${reviewList(rev)}</section>`;
+}
+
+function filtered(){
+  const d=S.dir,q=d.q.trim();
+  let r=S.schools.filter(s=>(!q||[s.name,s.code,s.village,s.service_no,s.phone].some(x=>String(x??"").includes(q)))
+    &&(!d.wilayat||s.wilayat===d.wilayat)&&(!d.village||s.village===d.village)&&(!d.gender||s.gender===d.gender)
+    &&(!d.conn||s.conn_type===d.conn)&&(!d.prov||s.provider===d.prov)&&(!d.review||s.needs_review));
+  const k=d.sort;
+  r.sort((x,y)=>{const a=x[k],b=y[k];const c=(typeof a==="number"&&typeof b==="number")?a-b:String(a??"").localeCompare(String(b??""),"ar",{numeric:true});return d.desc?-c:c});
+  return r;
+}
+function opts(vals,cur,ph){return `<option value="">${ph}</option>`+vals.map(v=>`<option ${v===cur?"selected":""}>${esc(v)}</option>`).join("")}
+function viewDirectory(){
+  const d=S.dir,u=k=>[...new Set(S.schools.map(s=>s[k]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ar"));
+  return `<h1>دليل المدارس</h1><p class="sub">ابحث بالاسم أو الرمز أو القرية أو رقم الخدمة، أو صفِّ حسب أي معيار.</p>
+  <div class="filters">
+    <label class="grow">بحث<input id="fq" type="search" value="${esc(d.q)}" placeholder="اسم المدرسة أو رمزها…"></label>
+    <label>الولاية<select id="fw">${opts(u("wilayat"),d.wilayat,"الكل")}</select></label>
+    <label>القرية<select id="fv">${opts(u("village"),d.village,"الكل")}</select></label>
+    <label>الجنس<select id="fg">${opts(GEND,d.gender,"الكل")}</select></label>
+    <label>الاتصال<select id="fc">${opts(CONN,d.conn,"الكل")}</select></label>
+    <label>المزوّد<select id="fp">${opts(PROV,d.prov,"الكل")}</select></label>
+    <label style="flex-direction:row;align-items:center;gap:6px;padding-bottom:8px"><input id="fr" type="checkbox" ${d.review?"checked":""} style="min-width:0">تحتاج مراجعة فقط</label>
+  </div>
+  <div class="filters"><span id="cnt" class="sub" style="margin:0"></span>
+    <button class="btn" id="csv" type="button">تصدير CSV</button>
+    ${isAdmin()?'<a class="btn primary" href="#/new">+ إضافة مدرسة</a>':""}</div>
+  <div class="tablewrap"><table><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>`;
+}
+const COLS=[["code","الرمز"],["name","اسم المدرسة"],["wilayat","الولاية"],["village","القرية"],["conn_type","الاتصال"],["provider","المزوّد"],["monthly_cost","التكلفة"],["needs_review","المراجعة"]];
+function drawDirTable(){
+  const r=filtered(),d=S.dir;
+  $("#cnt").textContent=`${r.length} من ${S.schools.length} مدرسة`;
+  $("#thead").innerHTML=COLS.map(([k,l])=>`<th aria-sort="${d.sort===k?(d.desc?"descending":"ascending"):"none"}"><button type="button" data-sort="${k}">${l}${d.sort===k?(d.desc?" ▼":" ▲"):""}</button></th>`).join("");
+  $("#tbody").innerHTML=r.length?r.map(s=>`<tr class="link" data-go="#/school/${esc(s.code)}"><td>${esc(s.code)}</td><td>${esc(s.name)}</td><td>${esc(s.wilayat)}</td><td>${esc(s.village)}</td>
+    <td>${esc(s.conn_type||"")}</td><td>${esc(s.provider||"")}</td><td class="num">${blank(s.monthly_cost)?"":nf.format(s.monthly_cost)}</td>
+    <td>${s.needs_review?'<span class="badge warn">! تحتاج مراجعة</span>':""}</td></tr>`).join(""):`<tr><td colspan="8" class="empty-state">لا توجد نتائج مطابقة.</td></tr>`;
+}
+function bindDirectory(){
+  const d=S.dir;
+  const set=(id,key,ev="change",val=e=>e.target.value)=>$(id).addEventListener(ev,e=>{d[key]=val(e);if(key==="wilayat"){}drawDirTable()});
+  set("#fq","q","input");set("#fw","wilayat");set("#fv","village");set("#fg","gender");set("#fc","conn");set("#fp","prov");set("#fr","review","change",e=>e.target.checked);
+  $("#thead").addEventListener("click",e=>{const b=e.target.closest("[data-sort]");if(!b)return;const k=b.dataset.sort;d.desc=d.sort===k?!d.desc:false;d.sort=k;drawDirTable()});
+  $("#csv").onclick=()=>{
+    const ks=["code",...FIELDS.map(f=>f.k)],rows=filtered();
+    const cell=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+    const txt="﻿"+[ks.map(k=>cell(LABEL[k])).join(","),...rows.map(s=>ks.map(k=>cell(s[k])).join(","))].join("\r\n");
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"text/csv;charset=utf-8"}));a.download="school-networks.csv";a.click();URL.revokeObjectURL(a.href);
+  };
+  drawDirTable();
+}
+
+function viewSchool(code){
+  const s=S.schools.find(x=>x.code===code);
+  if(!s) return `<div class="empty-state">لم تُوجد مدرسة بهذا الرمز.<br><a href="#/schools">العودة إلى الدليل</a></div>`;
+  const val=f=>f.t==="bool"?(s[f.k]?"نعم":"لا"):s[f.k];
+  const rows=[["code","رمز المدرسة",s.code],...FIELDS.map(f=>[f.k,f.l,val(f)])];
+  const map=!blank(s.lat)&&!blank(s.lon)?`<a href="https://www.google.com/maps?q=${s.lat},${s.lon}" target="_blank" rel="noopener">فتح الموقع على الخريطة</a>`:"";
+  return `<div class="crumb"><a href="#/schools">دليل المدارس</a> ‹ ${esc(s.code)}</div>
+  <h1>${esc(s.name)}</h1>
+  <p class="sub">${esc(s.wilayat||"")} · ${esc(s.village||"")} ${s.needs_review?'· <span class="badge warn">! تحتاج مراجعة</span>':""}</p>
+  ${s.needs_review&&s.review_reason?`<div class="msg info">سبب المراجعة: ${esc(s.review_reason)}</div>`:""}
+  <section class="card"><dl class="dl">${rows.filter(r=>r[0]!=="name"&&r[0]!=="review_reason").map(([k,l,v])=>`<div><dt>${l}</dt><dd ${["phone","service_no","second_line"].includes(k)?'dir="ltr" style="text-align:end"':""}>${show(v)}</dd></div>`).join("")}
+  <div><dt>آخر تعديل</dt><dd>${esc(s.updated_at?dtf.format(new Date(s.updated_at)):"—")}</dd></div></dl>
+  <p style="margin:14px 0 0">${map}</p>
+  ${isStaff()?`<div class="actions"><a class="btn primary" href="#/edit/${esc(s.code)}">تعديل البيانات</a></div>`:""}</section>`;
+}
+
+function formHtml(s,isNew){
+  const f2=f=>{
+    const v=s?s[f.k]:"",id="f_"+f.k;let ctl;
+    if(f.t==="select") ctl=`<select id="${id}"><option value="">—</option>${f.o.map(o=>`<option ${o===v?"selected":""}>${esc(o)}</option>`).join("")}</select>`;
+    else if(f.t==="bool") ctl=`<select id="${id}"><option value="false" ${!v?"selected":""}>لا</option><option value="true" ${v?"selected":""}>نعم</option></select>`;
+    else if(f.t==="area") ctl=`<textarea id="${id}" rows="3">${esc(v??"")}</textarea>`;
+    else ctl=`<input id="${id}" type="${f.t==="number"?"number":"text"}" ${f.t==="number"?'step="any"':""} value="${esc(v??"")}" ${f.ltr?'dir="ltr"':""} ${f.req?"required":""}>`;
+    return `<div class="fld ${f.wide?"wide":""}"><label for="${id}">${f.l}</label>${ctl}</div>`};
+  return `<form id="sf" class="form" novalidate>
+    <div class="fld"><label for="f_code">رمز المدرسة${isNew?"":" (لا يُعدَّل)"}</label><input id="f_code" value="${esc(s?.code||"")}" ${isNew?"required":"disabled"} dir="ltr"></div>
+    ${FIELDS.map(f2).join("")}</form>
+    <div id="fmsg"></div>
+    <div class="actions"><button class="btn primary" id="save" type="button">حفظ</button><a class="btn" href="${isNew?"#/schools":"#/school/"+esc(s.code)}">إلغاء</a>
+    ${!isNew&&isAdmin()?'<button class="btn danger" id="del" type="button">حذف المدرسة</button>':""}</div>`;
+}
+function viewEdit(code){
+  if(!isStaff()) return `<div class="empty-state">التعديل متاح للفنيين المعتمدين بعد تسجيل الدخول.<br><button class="btn primary" onclick="document.querySelector('#login').showModal()">تسجيل الدخول</button></div>`;
+  const s=S.schools.find(x=>x.code===code);
+  if(!s) return `<div class="empty-state">لم تُوجد المدرسة.</div>`;
+  S.editing=true;
+  return `<div class="crumb"><a href="#/school/${esc(s.code)}">${esc(s.name)}</a> ‹ تعديل</div><h1>تعديل بيانات المدرسة</h1>
+  <p class="sub">يُسجَّل كل تعديل باسمك وتاريخه في سجل التعديلات.</p><section class="card">${formHtml(s,false)}</section>`;
+}
+function viewNew(){
+  if(!isAdmin()) return `<div class="empty-state">إضافة المدارس متاحة للمدير فقط.</div>`;
+  S.editing=true;
+  return `<div class="crumb"><a href="#/schools">دليل المدارس</a> ‹ مدرسة جديدة</div><h1>إضافة مدرسة</h1><p class="sub"> </p><section class="card">${formHtml(null,true)}</section>`;
+}
+function readForm(){
+  const o={};
+  for(const f of FIELDS){
+    const el=$("#f_"+f.k);let v=el.value.trim();
+    if(f.t==="bool") o[f.k]=v==="true";
+    else if(f.t==="number") o[f.k]=v===""?null:Number(v);
+    else o[f.k]=v===""?null:v;
+  }
+  return o;
+}
+function bindForm(code,isNew){
+  const msg=(t,c)=>{$("#fmsg").innerHTML=`<div class="msg ${c}" style="margin-top:14px">${esc(t)}</div>`};
+  $("#save").onclick=async()=>{
+    const b=$("#save");b.disabled=true;
+    const vals=readForm();
+    if(!vals.name){msg("اسم المدرسة مطلوب.","err");b.disabled=false;return}
+    for(const f of FIELDS) if(f.t==="number"&&vals[f.k]!==null&&!Number.isFinite(vals[f.k])){msg(`قيمة غير صحيحة في: ${f.l}`,"err");b.disabled=false;return}
+    let res;
+    if(isNew){
+      const c=$("#f_code").value.trim();
+      if(!c){msg("رمز المدرسة مطلوب.","err");b.disabled=false;return}
+      res=await sb.from("schools").insert({code:c,...vals}).select();
+      code=c;
+    } else {
+      const old=S.schools.find(x=>x.code===code),patch={};
+      for(const k in vals) if(JSON.stringify(vals[k]??null)!==JSON.stringify(old[k]??null)) patch[k]=vals[k];
+      if(!Object.keys(patch).length){msg("لا توجد تغييرات للحفظ.","info");b.disabled=false;return}
+      res=await sb.from("schools").update(patch).eq("code",code).select();
+    }
+    if(res.error){msg(res.error.code==="23505"?"هذا الرمز مستخدم لمدرسة أخرى.":"تعذّر الحفظ: "+res.error.message,"err");b.disabled=false;return}
+    if(!res.data||!res.data.length){msg("لم يُحفظ التعديل: لا تملك الصلاحية، أو انتهت جلسة الدخول. سجّل الدخول من جديد.","err");b.disabled=false;return}
+    S.editing=false;await load();location.hash="#/school/"+code;
+  };
+  const del=$("#del");
+  if(del) del.onclick=()=>{
+    if(del.dataset.arm!=="1"){del.dataset.arm="1";del.textContent="اضغط مرة أخرى لتأكيد الحذف النهائي";return}
+    (async()=>{
+      const r=await sb.from("schools").delete().eq("code",code).select();
+      if(r.error||!r.data?.length){msg("تعذّر الحذف.","err");return}
+      S.editing=false;await load();location.hash="#/schools";
+    })();
+  };
+}
+
+let mapObj=null;
+function viewMap(){
+  const miss=S.schools.filter(s=>blank(s.lat)||blank(s.lon));
+  return `<h1>خريطة المدارس</h1><p class="sub">اللون يدل على نوع الاتصال. اضغط على أي نقطة لفتح المدرسة.</p>
+  <div class="legend"><span><i style="background:var(--c1)"></i>Fiber</span><span><i style="background:var(--c2)"></i>5G</span></div>
+  <div id="map" role="img" aria-label="خريطة مواقع المدارس"></div>
+  ${miss.length?`<p class="sub" style="margin-top:12px">مدارس بلا إحداثيات (${miss.length}): ${miss.map(s=>`<a href="#/school/${esc(s.code)}">${esc(s.name)}</a>`).join("، ")}</p>`:""}`;
+}
+function drawMap(){
+  if(!window.L) return;
+  const el=$("#map");if(!el)return;
+  mapObj=L.map(el,{scrollWheelZoom:false});
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap"}).addTo(mapObj);
+  const css=getComputedStyle(document.documentElement),pts=[];
+  S.schools.filter(s=>!blank(s.lat)&&!blank(s.lon)).forEach(s=>{
+    const col=s.conn_type==="Fiber"?css.getPropertyValue("--c1"):css.getPropertyValue("--c2");
+    const m=L.circleMarker([s.lat,s.lon],{radius:8,color:"#fff",weight:2,fillColor:col.trim(),fillOpacity:.95}).addTo(mapObj);
+    m.bindPopup(`<b>${esc(s.name)}</b><br>${esc(s.conn_type||"")} · ${esc(s.provider||"")}<br><a href="#/school/${esc(s.code)}">فتح صفحة المدرسة</a>`);
+    pts.push([s.lat,s.lon]);
+  });
+  if(pts.length) mapObj.fitBounds(pts,{padding:[30,30]}); else mapObj.setView([23.3,58],9);
+}
+
+function viewCompare(){
+  const a=S.schools;
+  const grp=(key)=>{const ks=[...new Set(a.map(s=>s[key]||"غير محدد"))].sort((x,y)=>x.localeCompare(y,"ar"));
+    return ks.map(k=>{const g=a.filter(s=>(s[key]||"غير محدد")===k);
+      return {k,n:g.length,f:g.filter(s=>s.conn_type==="Fiber").length,g5:g.filter(s=>s.conn_type==="5G").length,
+        o:g.filter(s=>s.provider==="Omantel").length,r:g.filter(s=>s.provider==="Ooredoo").length,c:sum(g,s=>s.monthly_cost),v:g.filter(s=>s.needs_review).length}})};
+  const tbl=(title,rows,first)=>{
+    const t=rows.reduce((m,r)=>{for(const x of["n","f","g5","o","r","c","v"])m[x]=(m[x]||0)+r[x];return m},{});
+    return `<section style="margin-bottom:20px"><h2>${title}</h2><div class="tablewrap"><table><thead><tr><th>${first}</th><th class="num">المدارس</th><th class="num">Fiber</th><th class="num">5G</th><th class="num">Omantel</th><th class="num">Ooredoo</th><th class="num">التكلفة الشهرية (ر.ع)</th><th class="num">تحتاج مراجعة</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${esc(r.k)}</td><td class="num">${r.n}</td><td class="num">${r.f}</td><td class="num">${r.g5}</td><td class="num">${r.o}</td><td class="num">${r.r}</td><td class="num">${nf.format(r.c)}</td><td class="num">${r.v}</td></tr>`).join("")+
+    `</tbody><tfoot><tr><td>الإجمالي</td><td class="num">${t.n||0}</td><td class="num">${t.f||0}</td><td class="num">${t.g5||0}</td><td class="num">${t.o||0}</td><td class="num">${t.r||0}</td><td class="num">${nf.format(t.c||0)}</td><td class="num">${t.v||0}</td></tr></tfoot></table></div></section>`};
+  return `<h1>المقارنة والتحليل</h1><p class="sub">مقارنة الولايات والقرى من حيث نوع الاتصال والمزوّد والتكلفة. مؤشرات السرعة ستُضاف حين تتوفر قيمها الفعلية.</p>
+  ${tbl("حسب الولاية",grp("wilayat"),"الولاية")}${tbl("حسب القرية",grp("village"),"القرية")}${tbl("حسب جنس المدرسة",grp("gender"),"الجنس")}`;
+}
+
+async function viewLog(){
+  if(!isAdmin()) return `<div class="empty-state">سجل التعديلات للمدير فقط.</div>`;
+  const {data,error}=await sb.from("audit_log").select("*").order("at",{ascending:false}).limit(200);
+  if(error) return `<div class="msg err">تعذّر تحميل السجل: ${esc(error.message)}</div>`;
+  const skip=new Set(["updated_at","updated_by"]);
+  const act={INSERT:"إضافة",UPDATE:"تعديل",DELETE:"حذف"};
+  const rows=data.map(r=>{
+    let det="";
+    if(r.action==="UPDATE"){
+      det=Object.keys(r.new_data||{}).filter(k=>!skip.has(k)&&JSON.stringify(r.old_data?.[k])!==JSON.stringify(r.new_data[k]))
+        .map(k=>`<div><b>${esc(LABEL[k]||k)}:</b> <span class="old">${esc(r.old_data?.[k]??"—")}</span> ← <span class="new">${esc(r.new_data[k]??"—")}</span></div>`).join("");
+    } else det=esc((r.new_data||r.old_data)?.name||"");
+    return `<tr><td class="num">${esc(dtf.format(new Date(r.at)))}</td><td>${esc(r.user_email||"النظام")}</td><td>${act[r.action]||esc(r.action)}</td><td>${esc(r.school_code||"")}</td><td class="diff">${det}</td></tr>`}).join("");
+  return `<h1>سجل التعديلات</h1><p class="sub">آخر ${data.length} عملية. لا يمكن لأي مستخدم تعديل هذا السجل أو حذفه.</p>
+  <div class="tablewrap"><table><thead><tr><th>الوقت</th><th>المستخدم</th><th>العملية</th><th>المدرسة</th><th>التفاصيل</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="empty-state">لا توجد عمليات.</td></tr>'}</tbody></table></div>`;
+}
+
+/* ---------- router ---------- */
+async function route(){
+  if(mapObj){mapObj.remove();mapObj=null}
+  S.editing=false;
+  const r=location.hash.replace(/^#\/?/,"").split("/").filter(Boolean).map(decodeURIComponent);
+  renderNav(r);window.scrollTo(0,0);
+  const app=$("#app");
+  if(!S.loaded){
+    if(S.error){app.innerHTML=`<div class="msg err">تعذّر الاتصال بقاعدة البيانات: ${esc(S.error)}<br><button class="btn" onclick="boot()">إعادة المحاولة</button></div>`;return}
+    app.innerHTML=`<div class="loading">جارٍ تحميل البيانات…</div>`;return;
+  }
+  const v=r[0]||"";
+  if(v==="") app.innerHTML=viewHome();
+  else if(v==="schools"){app.innerHTML=viewDirectory();bindDirectory()}
+  else if(v==="school") app.innerHTML=viewSchool(r[1]);
+  else if(v==="edit"){app.innerHTML=viewEdit(r[1]);if($("#sf"))bindForm(r[1],false)}
+  else if(v==="new"){app.innerHTML=viewNew();if($("#sf"))bindForm(null,true)}
+  else if(v==="map"){app.innerHTML=viewMap();drawMap()}
+  else if(v==="compare") app.innerHTML=viewCompare();
+  else if(v==="log"){app.innerHTML=`<div class="loading">جارٍ تحميل السجل…</div>`;app.innerHTML=await viewLog()}
+  else app.innerHTML=`<div class="empty-state">الصفحة غير موجودة. <a href="#/">الرئيسية</a></div>`;
+  renderFoot();
+}
+document.addEventListener("click",e=>{
+  const tr=e.target.closest("tr[data-go]");
+  if(tr&&!e.target.closest("a,button")) location.hash=tr.dataset.go;
+});
+const tip=$("#tip");
+document.addEventListener("pointermove",e=>{
+  const t=e.target.closest?.("[data-tip]");
+  if(!t){tip.style.display="none";return}
+  tip.textContent=t.dataset.tip;tip.style.display="block";
+  tip.style.left=Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8)+"px";tip.style.top=(e.clientY+16)+"px";
+});
+window.addEventListener("hashchange",route);
+
+/* login */
+$("#loginCancel").onclick=()=>$("#login").close();
+$("#loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const err=$("#loginErr"),go=$("#loginGo");err.hidden=true;go.disabled=true;
+  const {error}=await sb.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value});
+  go.disabled=false;
+  if(error){err.textContent="تعذّر الدخول: تحقق من البريد وكلمة المرور.";err.hidden=false;return}
+  $("#pw").value="";$("#login").close();await loadRole();route();
+});
+
+async function boot(){
+  await Promise.all([load(),loadRole()]);
+  route();
+}
+sb.auth.onAuthStateChange((ev)=>{if(ev==="TOKEN_REFRESHED"||ev==="SIGNED_OUT")loadRole()});
+setInterval(async()=>{if(document.hidden||S.editing||$("#login").open)return;const h=location.hash;if(/^#\/(edit|new)/.test(h))return;await load();route()},120000);
+boot();
+</script>
+</body>
+</html>
