@@ -11,16 +11,16 @@
 <style>
 :root{
   --bg:#f3f5f8;--surface:#ffffff;--ink:#14212e;--ink2:#4a5868;--ink3:#6b7886;--line:#dde3ea;
-  --accent:#17324d;--accent-fg:#ffffff;--c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;
+  --accent:#17324d;--accent-fg:#ffffff;--c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;--c4:#eda100;--none:#c3cbd5;
   --ok:#0b6b43;--ok-bg:#e1f4ea;--warn:#8a4b00;--warn-bg:#fff1dc;--bad:#a1241f;--bad-bg:#fde8e7;--soft:#eef2f6;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0d141b;--surface:#151f29;--ink:#e7eef5;--ink2:#b3bfcb;--ink3:#93a1af;--line:#26333f;
-  --accent:#4a90e2;--accent-fg:#06121f;--c1:#3987e5;--c2:#d95926;--c3:#199e70;
+  --accent:#4a90e2;--accent-fg:#06121f;--c1:#3987e5;--c2:#d95926;--c3:#199e70;--c4:#c98500;--none:#3a4856;
   --ok:#5fd0a0;--ok-bg:#123324;--warn:#f0b35c;--warn-bg:#3a2a10;--bad:#ff9a95;--bad-bg:#3b1816;--soft:#1b2733;color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0d141b;--surface:#151f29;--ink:#e7eef5;--ink2:#b3bfcb;--ink3:#93a1af;--line:#26333f;
-  --accent:#4a90e2;--accent-fg:#06121f;--c1:#3987e5;--c2:#d95926;--c3:#199e70;
+  --accent:#4a90e2;--accent-fg:#06121f;--c1:#3987e5;--c2:#d95926;--c3:#199e70;--c4:#c98500;--none:#3a4856;
   --ok:#5fd0a0;--ok-bg:#123324;--warn:#f0b35c;--warn-bg:#3a2a10;--bad:#ff9a95;--bad-bg:#3b1816;--soft:#1b2733;color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -169,7 +169,7 @@ const FIELDS = [
 const LABEL = Object.fromEntries(FIELDS.map(f=>[f.k,f.l])); LABEL.code="رمز المدرسة";
 
 /* ---------- state ---------- */
-const S = {schools:[],loaded:false,error:null,user:null,role:null,name:null,editing:false,
+const S = {schools:[],survey:[],loaded:false,error:null,user:null,role:null,name:null,editing:false,
   dir:{q:"",wilayat:"",village:"",gender:"",conn:"",prov:"",review:false,sort:"code",desc:false}};
 const $ = s=>document.querySelector(s);
 const esc = v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -182,8 +182,9 @@ const show = v=>blank(v)?'<span class="empty">غير مُدخل</span>':esc(v);
 
 /* ---------- data ---------- */
 async function load(){
-  const {data,error} = await sb.from("schools").select("*").order("code");
-  if(error){S.error=error.message;} else {S.schools=data;S.error=null;S.loaded=true;}
+  const [a,b] = await Promise.all([sb.from("schools").select("*").order("code"),sb.from("network_survey").select("*").order("id")]);
+  if(a.error){S.error=a.error.message;} else {S.schools=a.data;S.error=null;S.loaded=true;}
+  S.survey = b.error ? [] : b.data;
 }
 async function loadRole(){
   const {data:{session}} = await sb.auth.getSession();
@@ -197,7 +198,7 @@ async function loadRole(){
 
 /* ---------- chrome ---------- */
 function renderNav(route){
-  const tabs=[["#/","الرئيسية"],["#/map","الخريطة"],["#/schools","دليل المدارس"],["#/compare","المقارنة"]];
+  const tabs=[["#/","الرئيسية"],["#/map","الخريطة"],["#/schools","دليل المدارس"],["#/compare","المقارنة"],["#/network","الشبكة الداخلية"]];
   if(isAdmin()) tabs.push(["#/log","سجل التعديلات"]);
   const cur = route[0]==="school"?"#/schools":("#/"+(route[0]||""));
   $("#nav").innerHTML = tabs.map(([h,l])=>`<a href="${h}" ${h===cur?'aria-current="page"':""}>${l}</a>`).join("");
@@ -227,8 +228,8 @@ function lastUpdate(){
 /* ---------- helpers: aggregates ---------- */
 const count=(arr,f)=>arr.reduce((m,x)=>{const k=f(x)||"غير محدد";m[k]=(m[k]||0)+1;return m},{});
 const sum=(arr,f)=>arr.reduce((a,x)=>a+(Number(f(x))||0),0);
-function bars(items,{fmtv=v=>nf.format(v)}={}){
-  const max=Math.max(...items.map(i=>i.value),1);
+function bars(items,{fmtv=v=>nf.format(v),max:mx}={}){
+  const max=mx||Math.max(...items.map(i=>i.value),1);
   return `<div class="bars">`+items.map(i=>`<div class="brow"><span class="blabel">${esc(i.label)}</span>
     <div class="btrack" data-tip="${esc(i.label)}: ${esc(fmtv(i.value))}"><div class="bfill" style="width:${i.value/max*100}%;background:${i.color||"var(--c1)"}"></div></div>
     <span class="bval">${esc(fmtv(i.value))}</span></div>`).join("")+`</div>`;
@@ -330,7 +331,8 @@ function bindDirectory(){
   drawDirTable();
 }
 
-function viewSchool(code){
+function viewSchool(code){return viewSchoolBase(code)+surveySection(code)}
+function viewSchoolBase(code){
   const s=S.schools.find(x=>x.code===code);
   if(!s) return `<div class="empty-state">لم تُوجد مدرسة بهذا الرمز.<br><a href="#/schools">العودة إلى الدليل</a></div>`;
   const val=f=>f.t==="bool"?(s[f.k]?"نعم":"لا"):s[f.k];
@@ -467,10 +469,154 @@ async function viewLog(){
     if(r.action==="UPDATE"){
       det=Object.keys(r.new_data||{}).filter(k=>!skip.has(k)&&JSON.stringify(r.old_data?.[k])!==JSON.stringify(r.new_data[k]))
         .map(k=>`<div><b>${esc(LABEL[k]||k)}:</b> <span class="old">${esc(r.old_data?.[k]??"—")}</span> ← <span class="new">${esc(r.new_data[k]??"—")}</span></div>`).join("");
-    } else det=esc((r.new_data||r.old_data)?.name||"");
-    return `<tr><td class="num">${esc(dtf.format(new Date(r.at)))}</td><td>${esc(r.user_email||"النظام")}</td><td>${act[r.action]||esc(r.action)}</td><td>${esc(r.school_code||"")}</td><td class="diff">${det}</td></tr>`}).join("");
+    } else det=esc((r.new_data||r.old_data)?.name||(r.table_name==="network_survey"?"سجل مسح الشبكة الداخلية":""));
+    return `<tr><td class="num">${esc(dtf.format(new Date(r.at)))}</td><td>${esc(r.user_email||"النظام")}</td><td>${act[r.action]||esc(r.action)}</td><td>${esc(r.school_code||"")}${r.table_name==="network_survey"?' <span class="badge">مسح</span>':""}</td><td class="diff">${det}</td></tr>`}).join("");
   return `<h1>سجل التعديلات</h1><p class="sub">آخر ${data.length} عملية. لا يمكن لأي مستخدم تعديل هذا السجل أو حذفه.</p>
   <div class="tablewrap"><table><thead><tr><th>الوقت</th><th>المستخدم</th><th>العملية</th><th>المدرسة</th><th>التفاصيل</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="empty-state">لا توجد عمليات.</td></tr>'}</tbody></table></div>`;
+}
+
+/* ---------- network survey ---------- */
+const COV=["سلكي+لاسلكي","سلكي","لاسلكي","لا توجد"], STAT=["مكتملة","غير مكتملة"], PORTS=["100Mb","1000Mb","100Mb+1000Mb"];
+const AREAS=[["cov_admin","الغرف الإدارية"],["cov_classrooms","الفصول الدراسية"],["cov_resource","مركز مصادر التعلم"],["cov_lab1","مختبر الحاسوب الأول"],["cov_lab2","مختبر الحاسوب الثاني"],["cov_career","التوجيه المهني"],["cov_science","مختبرات العلوم"]];
+const SFIELDS=[
+  {k:"surveyed_at",l:"تاريخ المسح",t:"date"},
+  {k:"download_mbps",l:"سرعة التنزيل (Mbps)",t:"number"},
+  {k:"upload_mbps",l:"سرعة الرفع (Mbps)",t:"number"},
+  {k:"speed_estimated",l:"السرعة تقديرية (من الباقة لا قياس)",t:"bool"},
+  {k:"speed_note",l:"ملاحظة السرعة",t:"text",wide:1},
+  {k:"port_speed",l:"سرعة منافذ السويتش",t:"select",o:PORTS},
+  {k:"wired_status",l:"الشبكة السلكية",t:"select",o:STAT},
+  {k:"wireless_status",l:"الشبكة اللاسلكية",t:"select",o:STAT},
+  {k:"server_room",l:"وجود غرفة سيرفر",t:"yn"},
+  {k:"server_device",l:"توفر جهاز سيرفر",t:"yn"},
+  {k:"rack_locations",l:"مواقع حاويات الشبكة",t:"text",wide:1},
+  ...AREAS.map(([k,l])=>({k,l:"التغطية: "+l,t:"select",o:COV})),
+  {k:"area_notes",l:"ملاحظات المرافق",t:"area",wide:1},
+  {k:"notes_server",l:"ملاحظات السيرفر",t:"area",wide:1},
+  {k:"notes_general",l:"ملاحظات عامة",t:"area",wide:1},
+  {k:"needs_review",l:"يحتاج مراجعة",t:"bool"},
+  {k:"review_reason",l:"سبب المراجعة",t:"text",wide:1}
+];
+LABEL.survey_round="جولة المسح";LABEL.school_code="رمز المدرسة";
+SFIELDS.forEach(f=>{if(!LABEL[f.k])LABEL[f.k]=f.l});
+
+function surveyMap(){const m=new Map();S.survey.forEach(x=>{const o=m.get(x.school_code);if(!o||x.id>o.id)m.set(x.school_code,x)});return m}
+const latestSurvey=code=>surveyMap().get(code)||null;
+const yn=v=>v===true?"نعم":v===false?"لا":null;
+const sval=(f,s)=>{const v=s[f.k];if(f.t==="bool")return v?"نعم":"لا";if(f.t==="yn")return yn(v);return v};
+
+function surveySection(code){
+  const sc=S.schools.find(x=>x.code===code); if(!sc) return "";
+  const s=latestSurvey(code);
+  if(!s) return `<section class="card" style="margin-top:16px"><h2>الشبكة الداخلية</h2><p class="sub" style="margin:0">لا توجد بيانات مسح لهذه المدرسة.</p>${isAdmin()?`<div class="actions"><a class="btn primary" href="#/new-survey/${esc(code)}">+ إضافة مسح</a></div>`:""}</section>`;
+  const items=SFIELDS.filter(f=>f.k!=="review_reason");
+  const spd=(v)=>blank(v)?null:nf.format(v);
+  return `<section class="card" style="margin-top:16px"><h2>الشبكة الداخلية <span class="badge">${esc(s.survey_round)}</span> ${s.needs_review?'<span class="badge warn">! تحتاج مراجعة</span>':""}</h2>
+  ${s.needs_review&&s.review_reason?`<div class="msg info">سبب المراجعة: ${esc(s.review_reason)}</div>`:""}
+  <dl class="dl">${items.map(f=>`<div ${f.wide?'style="grid-column:1/-1"':""}><dt>${f.l}</dt><dd>${show(f.t==="number"?spd(s[f.k]):sval(f,s))}</dd></div>`).join("")}
+  <div><dt>آخر تعديل</dt><dd>${esc(s.updated_at?dtf.format(new Date(s.updated_at)):"—")}</dd></div></dl>
+  ${isStaff()?`<div class="actions"><a class="btn primary" href="#/edit-survey/${esc(s.id)}">تعديل بيانات المسح</a></div>`:""}</section>`;
+}
+
+function viewNetwork(){
+  const rows=[...surveyMap().values()],n=rows.length,total=S.schools.length;
+  if(!n) return `<h1>الشبكة الداخلية</h1><div class="empty-state">لا توجد بيانات مسح بعد.</div>`;
+  const cnt=f=>rows.filter(f).length, sc=c=>S.schools.find(x=>x.code===c)||{};
+  const round=[...new Set(rows.map(r=>r.survey_round))].join("، ");
+  const kp=[[n,"مدارس شملها المسح",`من أصل ${total}`],[cnt(r=>r.wired_status==="مكتملة"),"شبكة سلكية مكتملة",`من ${n}`],[cnt(r=>r.wireless_status==="مكتملة"),"شبكة لاسلكية مكتملة",`من ${n}`],
+    [cnt(r=>r.server_room===true),"غرفة سيرفر موجودة",`من ${n}`],[cnt(r=>r.server_device===true),"جهاز سيرفر متوفر",`من ${n}`],[cnt(r=>r.port_speed==="100Mb"),"منافذ سويتش 100Mb فقط",`من ${n}`]];
+  const cov=AREAS.map(([k,l])=>({label:l,parts:COV.map(c=>rows.filter(r=>r[k]===c).length)}));
+  const covS=[{label:"سلكي + لاسلكي",color:"var(--c1)"},{label:"سلكي فقط",color:"var(--c3)"},{label:"لاسلكي فقط",color:"var(--c4)"},{label:"لا توجد شبكة",color:"var(--none)"}];
+  const ready=bars([{label:"شبكة سلكية مكتملة",value:kp[1][0]},{label:"شبكة لاسلكية مكتملة",value:kp[2][0]},{label:"غرفة سيرفر موجودة",value:kp[3][0]},{label:"جهاز سيرفر متوفر",value:kp[4][0]}],{fmtv:v=>`${v} من ${n}`,max:n});
+  const ports=bars([{label:"100Mb فقط",value:cnt(r=>r.port_speed==="100Mb"),color:"var(--c2)"},{label:"مختلطة",value:cnt(r=>r.port_speed==="100Mb+1000Mb"),color:"var(--c4)"},{label:"1000Mb فقط",value:cnt(r=>r.port_speed==="1000Mb"),color:"var(--c3)"}],{fmtv:v=>`${v} من ${n}`,max:n});
+  const byDl=[...rows].sort((a,b)=>(b.download_mbps??-1)-(a.download_mbps??-1));
+  const bott=rows.filter(r=>r.port_speed==="100Mb"&&Number(r.download_mbps)>100);
+  const missing=S.schools.filter(x=>!rows.some(r=>r.school_code===x.code));
+  const sp=(v)=>blank(v)?'<span class="empty">—</span>':nf.format(v);
+  return `<h1>الشبكة الداخلية</h1><p class="sub">${esc(round)} · ${n} من ${total} مدرسة. بعض السرعات تقديرية من باقة الاشتراك وليست قياسًا، وهي معلَّمة في الجدول.</p>
+  <div class="grid kpis">${kp.map(([v,l,s])=>`<div class="card kpi"><div class="n">${v}</div><div class="l">${l}</div><div class="s">${s}</div></div>`).join("")}</div>
+  <div class="grid g2">
+    <section class="card"><h2>التغطية حسب المرفق</h2>${stacked(cov,covS)}</section>
+    <section class="card"><h2>الجاهزية</h2>${ready}<h2 style="margin-top:18px">سرعة منافذ السويتش</h2>${ports}</section>
+  </div>
+  ${bott.length?`<section class="card" style="margin-top:16px"><h2>منافذ السويتش تحدّ من سرعة الخدمة</h2><p class="sub" style="margin:0 0 10px">${bott.length} مدرسة منافذ سويتشاتها 100Mb وسرعة خدمتها أعلى من ذلك:</p><p style="margin:0">${bott.map(r=>`<a href="#/school/${esc(r.school_code)}">${esc(sc(r.school_code).name||r.school_code)}</a> (${sp(r.download_mbps)})`).join("، ")}</p></section>`:""}
+  <section style="margin-top:16px"><h2>السرعات حسب المدرسة</h2><div class="tablewrap"><table><thead><tr><th>المدرسة</th><th>الاتصال</th><th>المزوّد</th><th class="num">تنزيل (Mbps)</th><th class="num">رفع (Mbps)</th><th>منافذ السويتش</th><th>ملاحظة</th></tr></thead><tbody>`+
+  byDl.map(r=>{const o=sc(r.school_code);return `<tr class="link" data-go="#/school/${esc(r.school_code)}"><td>${esc(o.name||r.school_code)}</td><td>${esc(o.conn_type||"")}</td><td>${esc(o.provider||"")}</td><td class="num">${sp(r.download_mbps)}</td><td class="num">${sp(r.upload_mbps)}</td><td>${esc(r.port_speed||"")}</td><td>${r.speed_estimated?'<span class="badge warn">تقديري</span>':""}${r.needs_review?' <span class="badge warn">! مراجعة</span>':""}</td></tr>`}).join("")+
+  `</tbody></table></div></section>
+  ${missing.length?`<section style="margin-top:16px"><h2>مدارس لم يشملها المسح (${missing.length})</h2><p style="margin:0">${missing.map(x=>`<a href="#/school/${esc(x.code)}">${esc(x.name)}</a>`).join("، ")}</p></section>`:""}`;
+}
+
+function sCtl(f,v){
+  const id="s_"+f.k;
+  if(f.t==="select") return `<select id="${id}"><option value="">—</option>${f.o.map(o=>`<option ${o===v?"selected":""}>${esc(o)}</option>`).join("")}</select>`;
+  if(f.t==="bool") return `<select id="${id}"><option value="false" ${!v?"selected":""}>لا</option><option value="true" ${v?"selected":""}>نعم</option></select>`;
+  if(f.t==="yn") return `<select id="${id}"><option value="">—</option><option value="true" ${v===true?"selected":""}>نعم</option><option value="false" ${v===false?"selected":""}>لا</option></select>`;
+  if(f.t==="area") return `<textarea id="${id}" rows="3">${esc(v??"")}</textarea>`;
+  return `<input id="${id}" type="${f.t==="number"?"number":f.t==="date"?"date":"text"}" ${f.t==="number"?'step="any"':""} value="${esc(v??"")}">`;
+}
+function surveyFormHtml(s,isNew,code){
+  const sc=S.schools.find(x=>x.code===code)||{};
+  const head=isNew?`<div class="fld"><label for="s_round_new">جولة المسح</label><input id="s_round_new" value="المسح الأول"></div>`:`<div class="fld"><label>جولة المسح (لا تُعدَّل)</label><input value="${esc(s.survey_round)}" disabled></div>`;
+  return `<form id="sf" class="form" novalidate>${head}${SFIELDS.map(f=>`<div class="fld ${f.wide?"wide":""}"><label for="s_${f.k}">${f.l}</label>${sCtl(f,s?s[f.k]:(f.k==="needs_review"||f.k==="speed_estimated"?false:null))}</div>`).join("")}</form>
+  <div id="fmsg"></div>
+  <div class="actions"><button class="btn primary" id="save" type="button">حفظ</button><a class="btn" href="#/school/${esc(code)}">إلغاء</a>${!isNew&&isAdmin()?'<button class="btn danger" id="del" type="button">حذف سجل المسح</button>':""}</div>`;
+}
+function viewEditSurvey(id){
+  if(!isStaff()) return `<div class="empty-state">التعديل متاح للفنيين المعتمدين بعد تسجيل الدخول.<br><button class="btn primary" onclick="document.querySelector('#login').showModal()">تسجيل الدخول</button></div>`;
+  const s=S.survey.find(x=>String(x.id)===String(id));
+  if(!s) return `<div class="empty-state">لم يُوجد سجل المسح.</div>`;
+  S.editing=true;const sc=S.schools.find(x=>x.code===s.school_code)||{};
+  return `<div class="crumb"><a href="#/school/${esc(s.school_code)}">${esc(sc.name||s.school_code)}</a> ‹ تعديل المسح</div><h1>تعديل بيانات الشبكة الداخلية</h1><p class="sub">يُسجَّل كل تعديل باسمك وتاريخه في سجل التعديلات.</p><section class="card">${surveyFormHtml(s,false,s.school_code)}</section>`;
+}
+function viewNewSurvey(code){
+  if(!isAdmin()) return `<div class="empty-state">إضافة المسح متاحة للمدير فقط.</div>`;
+  const sc=S.schools.find(x=>x.code===code);
+  if(!sc) return `<div class="empty-state">لم تُوجد المدرسة.</div>`;
+  S.editing=true;
+  return `<div class="crumb"><a href="#/school/${esc(code)}">${esc(sc.name)}</a> ‹ مسح جديد</div><h1>إضافة مسح للشبكة الداخلية</h1><p class="sub"> </p><section class="card">${surveyFormHtml(null,true,code)}</section>`;
+}
+function readSurveyForm(){
+  const o={};
+  for(const f of SFIELDS){
+    const v=$("#s_"+f.k).value.trim();
+    if(f.t==="bool") o[f.k]=v==="true";
+    else if(f.t==="yn") o[f.k]=v===""?null:v==="true";
+    else if(f.t==="number") o[f.k]=v===""?null:Number(v);
+    else o[f.k]=v===""?null:v;
+  }
+  return o;
+}
+function bindSurveyForm(arg,isNew){
+  const msg=(t,c)=>{$("#fmsg").innerHTML=`<div class="msg ${c}" style="margin-top:14px">${esc(t)}</div>`};
+  const old=isNew?null:S.survey.find(x=>String(x.id)===String(arg));
+  const code=isNew?arg:old?.school_code;
+  $("#save").onclick=async()=>{
+    const b=$("#save");b.disabled=true;
+    const vals=readSurveyForm();
+    for(const f of SFIELDS) if(f.t==="number"&&vals[f.k]!==null&&!Number.isFinite(vals[f.k])){msg(`قيمة غير صحيحة في: ${f.l}`,"err");b.disabled=false;return}
+    let res;
+    if(isNew){
+      const round=$("#s_round_new").value.trim()||"المسح الأول";
+      res=await sb.from("network_survey").insert({school_code:arg,survey_round:round,...vals}).select();
+    } else {
+      const patch={};
+      for(const k in vals) if(JSON.stringify(vals[k]??null)!==JSON.stringify(old[k]??null)) patch[k]=vals[k];
+      if(!Object.keys(patch).length){msg("لا توجد تغييرات للحفظ.","info");b.disabled=false;return}
+      res=await sb.from("network_survey").update(patch).eq("id",old.id).select();
+    }
+    if(res.error){msg(res.error.code==="23505"?"توجد جولة بهذا الاسم لهذه المدرسة.":"تعذّر الحفظ: "+res.error.message,"err");b.disabled=false;return}
+    if(!res.data||!res.data.length){msg("لم يُحفظ التعديل: لا تملك الصلاحية، أو انتهت جلسة الدخول. سجّل الدخول من جديد.","err");b.disabled=false;return}
+    S.editing=false;await load();location.hash="#/school/"+code;
+  };
+  const del=$("#del");
+  if(del) del.onclick=()=>{
+    if(del.dataset.arm!=="1"){del.dataset.arm="1";del.textContent="اضغط مرة أخرى لتأكيد الحذف النهائي";return}
+    (async()=>{
+      const r=await sb.from("network_survey").delete().eq("id",old.id).select();
+      if(r.error||!r.data?.length){msg("تعذّر الحذف.","err");return}
+      S.editing=false;await load();location.hash="#/school/"+code;
+    })();
+  };
 }
 
 /* ---------- router ---------- */
@@ -492,6 +638,9 @@ async function route(){
   else if(v==="new"){app.innerHTML=viewNew();if($("#sf"))bindForm(null,true)}
   else if(v==="map"){app.innerHTML=viewMap();drawMap()}
   else if(v==="compare") app.innerHTML=viewCompare();
+  else if(v==="network") app.innerHTML=viewNetwork();
+  else if(v==="edit-survey"){app.innerHTML=viewEditSurvey(r[1]);if($("#sf"))bindSurveyForm(r[1],false)}
+  else if(v==="new-survey"){app.innerHTML=viewNewSurvey(r[1]);if($("#sf"))bindSurveyForm(r[1],true)}
   else if(v==="log"){app.innerHTML=`<div class="loading">جارٍ تحميل السجل…</div>`;app.innerHTML=await viewLog()}
   else app.innerHTML=`<div class="empty-state">الصفحة غير موجودة. <a href="#/">الرئيسية</a></div>`;
   renderFoot();
